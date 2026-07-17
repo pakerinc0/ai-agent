@@ -1,12 +1,9 @@
 from fastapi import APIRouter
 
+from app.api.agent import router as agent_router
+
 
 router = APIRouter()
 
 
-@router.get("/status")
-def status():
-    return {
-        "system": "AI Agent",
-        "status": "running"
-    }
+router.include_router(agent_router)
