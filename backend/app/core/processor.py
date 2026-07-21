@@ -6,7 +6,58 @@ class Processor:
         text = message.lower()
 
 
-        # обычный разговор
+        # =========================
+        # FILE / CODE TASKS
+        # =========================
+
+        if any(word in text for word in [
+            "создай",
+            "создать",
+            "напиши",
+            "сделай",
+            "файл",
+            "код",
+            "python",
+            ".py",
+            "запусти",
+            "запустить"
+        ]):
+
+            return {
+
+                "type": "command",
+                "intent": "file_task",
+                "confidence": 0.95
+
+            }
+
+
+
+        # =========================
+        # SYSTEM CHECK
+        # =========================
+
+        if any(word in text for word in [
+            "сервер",
+            "система",
+            "компьютер",
+            "пк",
+            "проверь"
+        ]):
+
+            return {
+
+                "type": "command",
+                "intent": "system_check",
+                "confidence": 0.8
+
+            }
+
+
+
+        # =========================
+        # GREETING
+        # =========================
 
         if any(word in text for word in [
             "привет",
@@ -19,28 +70,6 @@ class Processor:
                 "type": "conversation",
                 "intent": "greeting",
                 "confidence": 0.9
-
-            }
-
-
-
-        # команды проверки системы
-
-        if any(word in text for word in [
-            "сервер",
-            "система",
-            "систему",
-            "компьютер",
-            "пк",
-            "проверь",
-            "проверить"
-        ]):
-
-            return {
-
-                "type": "command",
-                "intent": "system_check",
-                "confidence": 0.8
 
             }
 

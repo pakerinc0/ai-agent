@@ -1,4 +1,5 @@
-from app.ai.ollama import OllamaProvider
+from app.ai.lmstudio import LMStudioProvider
 
 
-ai = OllamaProvider()
+
+ai = LMStudioProvider()

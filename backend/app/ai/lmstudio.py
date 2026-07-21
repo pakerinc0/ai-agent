@@ -5,13 +5,14 @@ from app.ai.base import AIProvider
 
 
 
-class OllamaProvider(AIProvider):
+class LMStudioProvider(AIProvider):
 
 
     def __init__(self):
 
-        self.base_url = "http://127.0.0.1:11434/api/generate"
-        self.default_model = "qwen3:8b"
+        self.base_url = "http://192.168.100.111:1234/v1/chat/completions"
+
+        self.default_model = "eva-qwen2.5-7b-v0.0"
 
 
 
@@ -23,17 +24,25 @@ class OllamaProvider(AIProvider):
     ) -> str:
 
 
-        final_prompt = prompt
+        messages = []
 
 
         if system_prompt:
 
-            final_prompt = f"""
-{system_prompt}
+            messages.append(
+                {
+                    "role": "system",
+                    "content": system_prompt
+                }
+            )
 
 
-{prompt}
-"""
+        messages.append(
+            {
+                "role": "user",
+                "content": prompt
+            }
+        )
 
 
         payload = {
@@ -43,14 +52,21 @@ class OllamaProvider(AIProvider):
                 self.default_model
             ),
 
-            "prompt": final_prompt,
+            "messages": messages,
+
+            "temperature": kwargs.get(
+                "temperature",
+                0.7
+            ),
 
             "stream": False
+
         }
 
 
 
         try:
+
 
             async with httpx.AsyncClient(
                 timeout=300
@@ -67,24 +83,23 @@ class OllamaProvider(AIProvider):
             if response.status_code != 200:
 
                 return (
-                    f"Ollama error: "
-                    f"{response.status_code} "
+                    f"LM Studio error: "
+                    f"{response.status_code}\n"
                     f"{response.text}"
                 )
+
 
 
             data = response.json()
 
 
-            return data.get(
-                "response",
-                "Нет ответа от модели"
-            )
+
+            return data["choices"][0]["message"]["content"]
 
 
 
         except Exception as e:
 
             return (
-                f"AI connection error: {str(e)}"
+                f"LM Studio connection error: {e}"
             )
