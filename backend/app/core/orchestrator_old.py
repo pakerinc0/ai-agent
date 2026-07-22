@@ -3,7 +3,9 @@ from app.core.action_parser import ActionParser
 from app.core.executor import AgentExecutor
 
 
+
 class Orchestrator:
+
 
     def __init__(self):
 
@@ -19,12 +21,16 @@ class Orchestrator:
 
     async def execute(self, task: str):
 
+
         print("[ORCHESTRATOR] Task started")
 
 
         result = {
+
             "task": task,
+
             "steps": []
+
         }
 
 
@@ -32,6 +38,7 @@ class Orchestrator:
         # =====================
         # PLANNER
         # =====================
+
 
         planner = self.manager.get_agent(
             "planner"
@@ -43,17 +50,19 @@ class Orchestrator:
         )
 
 
-        print("[PLANNER] completed")
+        print(
+            "[PLANNER] completed"
+        )
 
 
         result["plan"] = plan
 
 
 
-
         # =====================
         # CODER
         # =====================
+
 
         coder = self.manager.get_agent(
             "coder"
@@ -65,83 +74,91 @@ class Orchestrator:
         )
 
 
-        print("[CODER] generated")
+        print(
+            "[CODER] generated"
+        )
 
 
-        print("===== CODER RAW =====")
-        print(coder_output)
-        print("=====================")
+        print(
+            "===== CODER RAW ====="
+        )
+
+        print(
+            coder_output
+        )
+
+        print(
+            "====================="
+        )
 
 
 
         if not coder_output:
 
+
             return {
-                "error": "Coder returned empty response"
+
+                "error":
+                "Coder returned empty response"
+
             }
 
 
 
-
         # =====================
-        # PARSE ACTIONS
+        # ACTION PARSER
         # =====================
 
 
-        actions = self.parser.parse_all(
+        action = self.parser.parse(
             coder_output
         )
 
 
 
-        if not actions:
+        if not action:
+
 
             return {
 
                 "error":
-                    "Coder did not return valid actions",
+                "Coder did not return valid action",
 
                 "raw":
-                    coder_output
+                coder_output
 
             }
 
 
 
-        print("[ACTIONS PARSED]")
-        print(actions)
+        print(
+            "[ACTION PARSED]"
+        )
 
+
+        print(
+            action
+        )
 
 
 
         # =====================
-        # EXECUTION
+        # EXECUTOR
         # =====================
 
 
-        execution_results = []
+        execution = await self.executor.execute(
+            action
+        )
 
 
-        for action in actions:
-
-
-            execution = await self.executor.execute(
-                action
-            )
-
-
-            execution_results.append(
-                execution
-            )
+        print(
+            "[EXECUTOR] finished"
+        )
 
 
 
-        print("[EXECUTOR] finished")
-
-
-        result["execution"] = execution_results
-
-
+        result["execution"] = execution
 
 
 
@@ -156,16 +173,17 @@ class Orchestrator:
 
 
         review = await reviewer.run(
-            str(execution_results)
+            str(execution)
         )
 
 
-        print("[REVIEWER] completed")
+        print(
+            "[REVIEWER] completed"
+        )
+
 
 
         result["review"] = review
-
-
 
 
 
@@ -200,26 +218,24 @@ class Orchestrator:
 
             fix_prompt = f"""
 
+
 Исправь результат.
 
 
-Ошибка выполнения:
+Текущий результат:
 
-{execution_results}
+{execution}
 
 
-Проблемы проверки:
+Ошибки проверки:
 
 {review}
 
 
-Верни только JSON actions.
+Верни только JSON action.
 
 
-Разрешенные форматы:
-
-
-Создать файл:
+Формат:
 
 {{
 "tool":"file",
@@ -230,20 +246,7 @@ class Orchestrator:
 }}
 }}
 
-
-Запустить:
-
-{{
-"tool":"terminal",
-"method":"run",
-"params":{{
-"command":"python file.py"
-}}
-}}
-
-
 """
-
 
 
             coder_output = await coder.run(
@@ -256,9 +259,11 @@ class Orchestrator:
                 "===== FIX CODER RAW ====="
             )
 
+
             print(
                 coder_output
             )
+
 
             print(
                 "========================="
@@ -266,27 +271,13 @@ class Orchestrator:
 
 
 
-            actions = self.parser.parse_all(
+            action = self.parser.parse(
                 coder_output
             )
 
 
 
-            if not actions:
-
-                print(
-                    "[FIX] invalid actions"
-                )
-
-                break
-
-
-
-            execution_results = []
-
-
-
-            for action in actions:
+            if action:
 
 
                 execution = await self.executor.execute(
@@ -294,14 +285,9 @@ class Orchestrator:
                 )
 
 
-                execution_results.append(
-                    execution
-                )
-
-
 
             review = await reviewer.run(
-                str(execution_results)
+                str(execution)
             )
 
 
@@ -311,7 +297,7 @@ class Orchestrator:
         # =====================
 
 
-        result["final"] = execution_results
+        result["final"] = execution
 
         result["final_review"] = review
 

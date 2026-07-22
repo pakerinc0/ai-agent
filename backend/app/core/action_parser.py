@@ -5,58 +5,12 @@ import re
 class ActionParser:
 
 
-    def parse(self, text):
-
-        if not text:
-            return None
-
-
-        text = self.clean(text)
-
-
-        decoder = json.JSONDecoder()
-
-
-        start = 0
-
-
-        while True:
-
-            start = text.find("{", start)
-
-
-            if start == -1:
-                break
-
-
-            try:
-
-                data, _ = decoder.raw_decode(
-                    text[start:]
-                )
-
-
-                action = self.normalize(data)
-
-
-                if action:
-                    return action
-
-
-            except Exception:
-                pass
-
-
-            start += 1
-
-
-        return None
-
-
-
     def clean(self, text):
 
-        # убираем markdown блоки
+        if not text:
+            return ""
+
+        text = text.strip()
 
         text = re.sub(
             r"```json",
@@ -65,177 +19,273 @@ class ActionParser:
             flags=re.IGNORECASE
         )
 
-
         text = text.replace(
             "```",
             ""
         )
 
+        return text.strip()
 
-        # LLM часто использует Python triple quotes
-        # вместо JSON строк
 
-        text = text.replace(
-            '"""',
-            '"'
+
+    def parse(self, text):
+
+        actions = self.parse_all(text)
+
+        if actions:
+            return actions[0]
+
+        return None
+
+
+
+    def parse_all(self, text):
+
+        text = self.clean(text)
+
+
+        if not text:
+            return []
+
+
+
+        print(
+            f"[PARSER] Raw length: {len(text)}"
         )
 
 
-        return text.strip()
+        actions = []
+
+
+
+        # =========================
+        # Попытка обычного JSON
+        # =========================
+
+
+        try:
+
+            data = json.loads(text)
+
+
+            if isinstance(data, list):
+
+                for item in data:
+
+                    action = self.normalize(item)
+
+                    if action:
+                        actions.append(action)
+
+
+            else:
+
+                action = self.normalize(data)
+
+                if action:
+                    actions.append(action)
+
+
+
+            if actions:
+
+                return actions
+
+
+        except Exception:
+
+            pass
+
+
+
+
+        # =========================
+        # Поиск JSON объектов
+        # =========================
+
+
+        objects = re.findall(
+            r"\{.*?\}",
+            text,
+            re.DOTALL
+        )
+
+
+        for obj in objects:
+
+
+            try:
+
+                data = json.loads(
+                    obj
+                )
+
+
+                action = self.normalize(
+                    data
+                )
+
+
+                if action:
+
+                    actions.append(
+                        action
+                    )
+
+
+            except Exception:
+
+                pass
+
+
+
+
+        if actions:
+
+            return actions
+
+
+
+
+
+        # =========================
+        # FIX для """ и '''
+        # =========================
+
+
+        tool = re.search(
+            r'"tool"\s*:\s*"([^"]+)"',
+            text
+        )
+
+
+        method = re.search(
+            r'"method"\s*:\s*"([^"]+)"',
+            text
+        )
+
+
+        path = re.search(
+            r'"path"\s*:\s*"([^"]+)"',
+            text
+        )
+
+
+        content = re.search(
+            r'"content"\s*:\s*(?:"""|\'\'\')(.*?)(?:"""|\'\'\')',
+            text,
+            re.DOTALL
+        )
+
+
+
+        if tool and method:
+
+
+            params = {}
+
+
+            if path:
+
+                params["path"] = path.group(1)
+
+
+
+            if content:
+
+                params["content"] = content.group(1)
+
+
+
+            actions.append({
+
+                "tool":
+                    tool.group(1),
+
+                "method":
+                    method.group(1),
+
+                "params":
+                    params
+
+            })
+
+
+
+        return actions
+
 
 
 
     def normalize(self, data):
 
+
         if not isinstance(data, dict):
+
             return None
 
 
 
-        tool_data = data.get("tool")
+        tool = data.get(
+            "tool"
+        )
 
 
+        if isinstance(tool, str):
 
-        # ===============================
-        # Формат:
-        #
-        # {
-        #   "tool":"file",
-        #   "method":"write_file",
-        #   "params":{}
-        # }
-        #
-        # ===============================
-
-
-        if isinstance(tool_data, str):
 
             return {
 
-                "tool": tool_data,
+                "tool":
+                    tool,
 
-                "method": data.get(
-                    "method"
-                ),
+                "method":
+                    data.get(
+                        "method"
+                    ),
 
-                "params": data.get(
-                    "params",
-                    {}
-                )
+                "params":
+                    data.get(
+                        "params",
+                        {}
+                    )
 
             }
 
 
 
-        # ===============================
-        # Формат:
-        #
-        # {
-        #   "tool":{
-        #       "name":"file",
-        #       "method":"write_file"
-        #   }
-        # }
-        #
-        # ===============================
+        if isinstance(tool, dict):
 
-
-        if isinstance(tool_data, dict):
-
-
-            tool_name = (
-
-                tool_data.get(
-                    "type"
-                )
-
-                or
-
-                tool_data.get(
-                    "name"
-                )
-
-                or
-
-                tool_data.get(
-                    "tool"
-                )
-
-            )
-
-
-            method = (
-
-                tool_data.get(
-                    "method"
-                )
-
-                or
-
-                data.get(
-                    "method"
-                )
-
-            )
-
-
-            params = (
-
-                tool_data.get(
-                    "params"
-                )
-
-                or
-
-                data.get(
-                    "params",
-                    {}
-                )
-
-            )
-
-
-            if tool_name:
-
-                return {
-
-                    "tool": tool_name,
-
-                    "method": method,
-
-                    "params": params
-
-                }
-
-
-
-        # ===============================
-        # Формат:
-        #
-        # {
-        #   "file":{
-        #       "path":"hello.py"
-        #   }
-        # }
-        #
-        # ===============================
-
-
-        if "file" in data:
 
             return {
 
-                "tool": "file",
+                "tool":
+                    tool.get(
+                        "name"
+                    )
+                    or
+                    tool.get(
+                        "type"
+                    ),
 
                 "method":
+                    tool.get(
+                        "method"
+                    )
+                    or
                     data.get(
-                        "method",
-                        "write_file"
+                        "method"
                     ),
 
                 "params":
+                    tool.get(
+                        "params",
+                        {}
+                    )
+                    or
                     data.get(
-                        "file"
+                        "params",
+                        {}
                     )
 
             }
