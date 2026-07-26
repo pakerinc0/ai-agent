@@ -6,28 +6,20 @@ import os
 class TestRunner:
 
 
-
-    def run_project(
-            self,
-            project_path
+    def run_file(
+        self,
+        file_path
     ):
 
 
-        main_file = os.path.join(
-            project_path,
-            "main.py"
-        )
-
-
-        if not os.path.exists(main_file):
+        if not os.path.exists(file_path):
 
             return {
 
-                "status":
-                "error",
+                "status": "error",
 
                 "message":
-                "main.py not found"
+                    f"{file_path} not found"
 
             }
 
@@ -40,20 +32,14 @@ class TestRunner:
 
                 [
                     "python",
-                    main_file
+                    file_path
                 ],
-
-
-                input="2\n+\n3\n",
-
 
                 text=True,
 
-
                 capture_output=True,
 
-
-                timeout=10
+                timeout=15
 
             )
 
@@ -62,21 +48,37 @@ class TestRunner:
 
 
                 "status":
-                "success"
-                if result.returncode == 0
-                else "failed",
+                    "passed"
+                    if result.returncode == 0
+                    else "failed",
 
 
                 "stdout":
-                result.stdout,
+                    result.stdout,
 
 
                 "stderr":
-                result.stderr,
+                    result.stderr,
 
 
-                "code":
-                result.returncode
+                "return_code":
+                    result.returncode
+
+
+            }
+
+
+
+        except subprocess.TimeoutExpired:
+
+
+            return {
+
+                "status":
+                    "failed",
+
+                "error":
+                    "Execution timeout"
 
             }
 
@@ -89,10 +91,9 @@ class TestRunner:
 
 
                 "status":
-                "error",
+                    "error",
 
-
-                "message":
-                str(e)
+                "error":
+                    str(e)
 
             }

@@ -13,23 +13,26 @@ class ReviewerAgent(BaseAgent):
 
 
 
-    async def run(self, task: str):
+    async def run(
+        self,
+        task,
+        context
+    ):
+
+
+        files = context.get(
+            "files"
+        )
+
+        test = context.get(
+            "test"
+        )
+
 
 
         prompt = f"""
-Ты являешься Reviewer Agent.
 
-Твоя задача:
-проверять код и находить проблемы.
-
-Проверяй:
-
-- ошибки Python;
-- неправильную архитектуру;
-- плохие практики;
-- потенциальные баги;
-- безопасность;
-- читаемость.
+Ты Senior Code Reviewer.
 
 
 Задача:
@@ -37,24 +40,39 @@ class ReviewerAgent(BaseAgent):
 {task}
 
 
-Ответ должен иметь структуру:
+Код:
+
+{files}
 
 
-1. Найденные проблемы
+Результаты тестов:
 
-2. Почему это проблема
+{test}
 
-3. Как исправить
 
-4. Итоговая оценка:
-GOOD или NEEDS_FIX
 
+Проанализируй:
+
+- архитектуру
+- читаемость
+- безопасность
+- ошибки
+
+
+Если всё хорошо:
+
+GOOD
+
+
+Если есть проблемы:
+
+NEEDS_FIX
+
+
+Ответ только анализ.
 """
 
 
-        result = await self.ask_ai(
+        return await self.ai.generate(
             prompt
         )
-
-
-        return result

@@ -1,9 +1,8 @@
 from datetime import datetime
 
 from app.memory.memory_manager import MemoryManager
-from app.core.planner import Planner
-from app.core.project_builder import ProjectBuilder
 from app.core.state import AgentState
+from app.core.agent_manager import AgentManager
 
 
 class Engine:
@@ -12,59 +11,208 @@ class Engine:
 
         self.memory = MemoryManager()
 
-        self.planner = Planner()
-
-        self.builder = ProjectBuilder()
-
         self.state = AgentState()
+
+        self.manager = AgentManager()
+
 
 
     async def execute(
         self,
-        task: str
+        task: str,
+        plan,
+        architecture
     ):
 
         print("[ENGINE] Task received")
 
-        self.state.update_status("working")
-        self.state.set_task(task)
+
+        self.state.update_status(
+            "working"
+        )
+
+        self.state.set_task(
+            task
+        )
+
+
+        #
+        # MEMORY SEARCH
+        #
 
         print("[MEMORY] searching")
 
-        memory = self.memory.search(task)
+
+        memory = self.memory.search(
+            task
+        )
+
 
         if memory:
-            print("[MEMORY] found previous experience")
+            print(
+                "[MEMORY] previous experience found"
+            )
+
         else:
-            print("[MEMORY] no previous experience")
+            print(
+                "[MEMORY] no experience"
+            )
 
-        print("[ENGINE] Planner started")
 
-        plan = await self.planner.create_plan(task)
 
-        print("[ENGINE] Planner finished")
+        #
+        # CODER
+        #
 
-        result = {
+        print(
+            "[CODER] started"
+        )
 
-            "task": task,
 
-            "plan": plan,
-
-            "memory": memory,
-
-            "created": datetime.now().isoformat()
-
-        }
-
-        self.memory.add(
+        code = await self.manager.run_agent(
+            "coder",
             task,
             {
-                "stage": "planning",
-                "result": plan,
-                "status": "success"
+                "plan": plan,
+                "architecture": architecture
             }
         )
 
-        self.state.update_status("idle")
 
-        return result
+        print(
+            "[CODER] completed"
+        )
+
+
+
+        #
+        # REVIEW
+        #
+
+        print(
+            "[REVIEWER] started"
+        )
+
+
+        review = await self.manager.run_agent(
+            "reviewer",
+            task,
+            {
+                "files": code
+            }
+        )
+
+
+        print(
+            "[REVIEWER] completed"
+        )
+
+
+
+        #
+        # TEST
+        #
+
+        print(
+            "[TESTER] started"
+        )
+
+
+        test = await self.manager.run_agent(
+            "tester",
+            task,
+            {
+                "files": code
+            }
+        )
+
+
+        print(
+            "[TESTER] completed"
+        )
+
+
+
+        #
+        # SAVE EXPERIENCE
+        #
+
+        self.memory.add(
+
+            task,
+
+            {
+
+                "stage":
+                "completed",
+
+
+                "plan":
+                plan,
+
+
+                "architecture":
+                architecture,
+
+
+                "code":
+                code,
+
+
+                "review":
+                review,
+
+
+                "test":
+                test,
+
+
+                "status":
+                "success"
+
+            }
+
+        )
+
+
+
+        self.state.update_status(
+            "idle"
+        )
+
+
+
+        return {
+
+            "task":
+            task,
+
+
+            "plan":
+            plan,
+
+
+            "architecture":
+            architecture,
+
+
+            "code":
+            code,
+
+
+            "review":
+            review,
+
+
+            "test":
+            test,
+
+
+            "memory":
+            memory,
+
+
+            "created":
+            datetime.now().isoformat()
+
+        }

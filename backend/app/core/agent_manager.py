@@ -4,6 +4,7 @@ from app.agents.reviewer_agent import ReviewerAgent
 from app.agents.tester_agent import TesterAgent
 from app.agents.debugger_agent import DebuggerAgent
 from app.agents.tool_agent import ToolAgent
+from app.agents.architect_agent import ArchitectAgent
 
 
 
@@ -12,45 +13,173 @@ class AgentManager:
 
     def __init__(self):
 
-
         self.agents = {
 
+            "planner": PlannerAgent(),
 
-            "planner":
-            PlannerAgent(),
+            "architect": ArchitectAgent(),
 
+            "coder": CoderAgent(),
 
-            "coder":
-            CoderAgent(),
+            "reviewer": ReviewerAgent(),
 
+            "tester": TesterAgent(),
 
-            "reviewer":
-            ReviewerAgent(),
+            "debugger": DebuggerAgent(),
 
-
-            "tester":
-            TesterAgent(),
-
-
-            "debugger":
-            DebuggerAgent(),
-
-
-            "tool":
-            ToolAgent()
+            "tool": ToolAgent(),
 
         }
 
 
 
-    def get_agent(self,name):
+    async def run_agent(
+        self,
+        name,
+        task,
+        context=None
+    ):
 
-        return self.agents.get(name)
+
+        if name not in self.agents:
+
+            raise Exception(
+                f"Agent {name} not found"
+            )
+
+
+        if context is None:
+
+            context = {}
 
 
 
-    def list_agents(self):
+        agent = self.agents[name]
 
-        return list(
-            self.agents.keys()
-        )
+
+
+        if name == "planner":
+
+
+            result = await agent.run(
+
+                task
+
+            )
+
+
+
+        elif name == "architect":
+
+
+            result = await agent.run(
+
+                context.get(
+                    "plan"
+                )
+
+            )
+
+
+
+        elif name == "coder":
+
+
+            result = await agent.run(
+
+                task,
+
+                context.get(
+                    "plan"
+                ),
+
+                context.get(
+                    "architecture"
+                )
+
+            )
+
+
+
+        elif name == "tester":
+
+
+            result = await agent.run(
+
+                task,
+
+                {
+
+                    "files":
+                    context.get(
+                        "files",
+                        []
+                    )
+
+                }
+
+            )
+
+
+
+        elif name == "reviewer":
+
+
+            result = await agent.run(
+
+                task,
+
+                {
+
+                    "files":
+                    context.get(
+                        "files",
+                        []
+                    ),
+
+                    "test":
+                    context.get(
+                        "test",
+                        ""
+                    )
+
+                }
+
+            )
+
+
+
+        elif name == "debugger":
+
+
+            result = await agent.run(
+
+                context
+
+            )
+
+
+
+        elif name == "tool":
+
+
+            result = await agent.run(
+
+                context
+
+            )
+
+
+
+        else:
+
+
+            result = await agent.run(
+
+                task
+
+            )
+
+
+
+        return result

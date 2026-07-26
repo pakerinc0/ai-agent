@@ -1,28 +1,57 @@
+"""
+Simple Calculator in Python
+"""
+import sys
 
-def add(a, b):
-    return a + b
+def add(x, y):
+    return x + y
 
+def subtract(x, y):
+    return x - y
 
-def subtract(a, b):
-    return a - b
+def multiply(x, y):
+    return x * y
 
+def divide(x, y):
+    if y == 0:
+        raise ValueError("Деление на ноль недопустимо")
+    return x / y
 
-def multiply(a, b):
-    return a * b
+print("Выберите операцию:")
+print("1. Сложение")
+print("2. Вычитание")
+print("3. Умножение")
+print("4. Деление")
 
+while True:
+    choice = input("Введите номер операции (1/2/3/4): ")
 
-def divide(a, b):
+    if choice in ('1', '2', '3', '4'):
+        try:
+            num1 = float(input("Введите первое число: "))
+            num2 = float(input("Введите второе число: "))
+        except ValueError:
+            print("Ошибка! Введите корректное число.")
+            continue
 
-    if b == 0:
-        return None
+        if choice == '1':
+            print(f"{num1} + {num2} =", add(num1, num2))
 
-    return a / b
+        elif choice == '2':
+            print(f"{num1} - {num2} =", subtract(num1, num2))
 
+        elif choice == '3':
+            print(f"{num1} * {num2} =", multiply(num1, num2))
 
-def main():
+        elif choice == '4':
+            try:
+                result = divide(num1, num2)
+                print(f"{num1} / {num2} =", result)
+            except ValueError as e:
+                print(e)
 
-    print("Calculator")
-
-
-if __name__ == "__main__":
-    main()
+        next_calculation = input("Хотите продолжить вычисления? (да/нет): ")
+        if next_calculation.lower() != 'да':
+            break
+    else:
+        print("Ошибка! Неверный ввод. Пожалуйста, введите номер операции из списка.")

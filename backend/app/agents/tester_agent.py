@@ -1,7 +1,6 @@
 from app.agents.base_agent import BaseAgent
 
 
-
 class TesterAgent(BaseAgent):
 
 
@@ -13,39 +12,43 @@ class TesterAgent(BaseAgent):
 
 
 
-    async def run(self, task: str):
+    async def run(
+        self,
+        task,
+        context
+    ):
+
+
+        files = context.get(
+            "files",
+            []
+        )
 
 
         prompt = f"""
-Ты являешься Tester Agent.
+Ты Senior Python QA инженер.
 
-Твоя задача:
-проверять программный код.
+Проверь настоящий код.
 
-Анализируй:
-
-- возможные ошибки выполнения;
-- отсутствие обработки исключений;
-- неправильную логику;
-- проблемы с производительностью;
-- сценарии, которые могут сломать программу.
-
-
-Код для проверки:
+ЗАДАЧА:
 
 {task}
 
 
-Ответ должен содержать:
+ФАЙЛЫ:
+
+{files}
 
 
-1. Найденные ошибки
+Проверь:
 
-2. Тестовые сценарии
+1. Синтаксис
+2. Логику
+3. Ошибки выполнения
+4. Крайние случаи
 
-3. Что нужно исправить
 
-4. Итог:
+Ответ:
 
 PASSED
 
@@ -53,12 +56,10 @@ PASSED
 
 FAILED
 
+и список ошибок.
 """
 
 
-        result = await self.ask_ai(
+        return await self.ai.generate(
             prompt
         )
-
-
-        return result

@@ -1,218 +1,212 @@
-from app.agents.base_agent import BaseAgent
 import json
-import textwrap
+import re
 
+from app.agents.base_agent import BaseAgent
 
 
 class CoderAgent(BaseAgent):
 
-
     def __init__(self):
-
-        super().__init__(
-            "coder"
-        )
-
+        super().__init__("coder")
 
 
     async def run(
         self,
-        task: str
+        task,
+        plan,
+        architecture
     ):
 
-
         prompt = f"""
-Ты Coder Agent.
+Ты Senior Python разработчик.
 
-Твоя задача — создавать действия для выполнения задачи через инструменты.
+Создай рабочий код.
 
-Задача:
-
+ЗАДАЧА:
 {task}
 
+ПЛАН:
+{plan}
 
-Ты работаешь через Tool System.
+АРХИТЕКТУРА:
+{architecture}
 
-Возвращай ТОЛЬКО JSON.
 
-Формат ответа:
+ОТВЕТ ТОЛЬКО JSON.
+
+Формат:
 
 {{
-    "tool": "file",
-    "method": "write_file",
-    "params": {{
-        "path": "filename.py",
-        "content": "код файла"
-    }}
+ "files": [
+   {{
+    "path":"main.py",
+    "content":"код файла"
+   }}
+ ]
 }}
 
+ВАЖНО:
 
-Правила:
-
-- только JSON
-- никаких markdown
-- никаких ```python
-- никаких объяснений
-- используй только доступные инструменты
-- для создания файлов используй:
-  tool = file
-  method = write_file
+- Используй только двойные кавычки JSON.
+- Никаких markdown.
+- Никаких ```.
+- Никаких тройных кавычек.
+- content должен быть JSON строкой.
+- Код должен быть полностью рабочим.
 """
 
 
-        result = await self.ask_ai(
+        response = await self.ai.generate(
             prompt
         )
 
 
-        if result:
+        print("[CODER RAW]")
+        print(response)
 
-            cleaned = self.clean_json(
-                result
-            )
 
-            if cleaned:
+        data = self.extract_json(response)
 
-                return cleaned
 
+        files = data.get(
+            "files",
+            []
+        )
 
 
         print(
-            "[CODER] LOCAL MODE"
+            "[CODER] files:",
+            len(files)
         )
 
 
-        return self.local_generate(
-            task
-        )
+        actions = []
+
+
+        for file in files:
+
+            if not isinstance(file, dict):
+                continue
+
+
+            path = file.get("path")
+            content = file.get("content")
+
+
+            if not path or not content:
+                continue
+
+
+            actions.append(
+                {
+                    "tool": "file",
+                    "method": "write_file",
+                    "params":
+                    {
+                        "path": path,
+                        "content": content
+                    }
+                }
+            )
+
+
+        return actions
 
 
 
-
-    def clean_json(
+    def extract_json(
         self,
         text
     ):
 
 
+        if isinstance(text, dict):
+            return text
+
+
+
+        cleaned = text.strip()
+
+
+        cleaned = cleaned.replace(
+            "```json",
+            ""
+        )
+
+        cleaned = cleaned.replace(
+            "```",
+            ""
+        )
+
+
+
+        start = cleaned.find("{")
+
+        end = cleaned.rfind("}")
+
+
+        if start >= 0 and end >= 0:
+
+            cleaned = cleaned[start:end+1]
+
+
+
         try:
 
-            start = text.find("{")
-
-            end = text.rfind("}") + 1
-
-
-            if start == -1:
-
-                return None
-
-
-
-            data = text[start:end]
-
-
-            json.loads(
-                data
+            return json.loads(
+                cleaned
             )
-
-
-            return data
-
 
 
         except Exception:
 
-            return None
 
-
-
-
-
-    def local_generate(
-        self,
-        task
-    ):
-
-
-        task_lower = task.lower()
-
-
-
-        if "калькулятор" in task_lower:
-
-
-            code = textwrap.dedent(
-            """
-            def add(a, b):
-                return a + b
-
-
-            def subtract(a, b):
-                return a - b
-
-
-            def multiply(a, b):
-                return a * b
-
-
-            def divide(a, b):
-
-                if b == 0:
-                    return None
-
-                return a / b
-
-
-            def main():
-
-                print("Calculator")
-
-
-            if __name__ == "__main__":
-                main()
-            """
+            print(
+                "[JSON REPAIR] trying repair"
             )
 
 
+        try:
 
-            return json.dumps(
-            {
-                "tool":
-                    "file",
 
-                "method":
-                    "write_file",
+            # исправляем triple quotes модели
 
-                "params":
-                {
-                    "path":
-                        "calculator.py",
-
-                    "content":
-                        code
-                }
-            },
-            ensure_ascii=False
+            cleaned = re.sub(
+                r'"""(.*?)"""',
+                lambda m:
+                    json.dumps(
+                        m.group(1)
+                    ),
+                cleaned,
+                flags=re.S
             )
 
 
+            cleaned = re.sub(
+                r"'''(.*?)'''",
+                lambda m:
+                    json.dumps(
+                        m.group(1)
+                    ),
+                cleaned,
+                flags=re.S
+            )
 
-        return json.dumps(
-        {
-            "tool":
-                "file",
 
-            "method":
-                "write_file",
+            return json.loads(
+                cleaned
+            )
 
-            "params":
-            {
-                "path":
-                    "main.py",
 
-                "content":
-                    "print('Generated project')"
+        except Exception as e:
+
+
+            print(
+                "[CODER JSON ERROR]",
+                e
+            )
+
+
+            return {
+                "files":[]
             }
-        },
-        ensure_ascii=False
-        )

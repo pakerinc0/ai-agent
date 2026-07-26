@@ -1,105 +1,49 @@
 from app.agents.base_agent import BaseAgent
 
 
-
 class PlannerAgent(BaseAgent):
 
-
     def __init__(self):
-
-        super().__init__(
-            "planner"
-        )
-
+        super().__init__("planner")
 
 
     async def run(
         self,
-        task: str
+        task,
+        context=None
     ):
 
-
         prompt = f"""
-Ты являешься Planner Agent.
+Ты Senior Software Architect.
 
-Проанализируй задачу:
+Создай подробный технический план выполнения задачи.
+
+ЗАДАЧА:
 
 {task}
 
-Создай структурированный план.
-Не пиши код.
+
+Контекст:
+
+{context}
+
+
+Ответ должен содержать:
+
+1. Анализ задачи
+2. Этапы разработки
+3. Возможные проблемы
+4. Требования к коду
+5. План тестирования
+
+
+Пиши структурировано.
 """
 
 
-        result = await self.ask_ai(
+        result = await self.ai.generate(
             prompt
         )
 
 
-        # если AI недоступен
-        if (
-            result.startswith(
-                "LM Studio connection error"
-            )
-            or
-            result.startswith(
-                "Ollama connection error"
-            )
-        ):
-
-
-            return self.local_plan(
-                task
-            )
-
-
-
         return result
-
-
-
-
-    def local_plan(
-        self,
-        task
-    ):
-
-
-        return f"""
-LOCAL PLANNER MODE
-
-
-Задача:
-{task}
-
-
-План выполнения:
-
-
-1. Анализ требований задачи.
-
-
-2. Определение необходимых компонентов.
-
-
-3. Разделение задачи на модули.
-
-
-4. Создание структуры проекта.
-
-
-5. Реализация основной логики.
-
-
-6. Проверка работоспособности.
-
-
-7. Исправление ошибок.
-
-
-8. Сохранение результата в память агента.
-
-
-Статус:
-План создан без AI модели.
-"""
