@@ -1,18 +1,19 @@
-from app.memory.storage import MemoryStorage
+from app.memory.memory_manager import MemoryManager
 
 
-memory = MemoryStorage()
+memory = MemoryManager()
 
 
-memory.save(
-    "Создать FastAPI сервер",
-    {
-        "status": "completed",
-        "quality": 90
-    }
+memory.remember(
+    "создать FastAPI сервер",
+    "использовать FastAPI и Uvicorn",
+    "success"
 )
 
 
-print(
-    memory.load()
+result = memory.recall(
+    "FastAPI"
 )
+
+
+print(result)

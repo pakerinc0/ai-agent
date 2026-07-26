@@ -10,9 +10,13 @@ class LMStudioProvider(AIProvider):
 
     def __init__(self):
 
-        self.base_url = "http://192.168.100.111:1234/v1/chat/completions"
+        self.base_url = (
+            "http://192.168.100.111:1234/v1/chat/completions"
+        )
 
-        self.default_model = "eva-qwen2.5-7b-v0.0"
+        self.default_model = (
+            "eva-qwen2.5-7b-v0.0"
+        )
 
 
 
@@ -21,7 +25,7 @@ class LMStudioProvider(AIProvider):
         prompt: str,
         system_prompt: Optional[str] = None,
         **kwargs
-    ) -> str:
+    ):
 
 
         messages = []
@@ -37,6 +41,7 @@ class LMStudioProvider(AIProvider):
             )
 
 
+
         messages.append(
             {
                 "role": "user",
@@ -45,21 +50,26 @@ class LMStudioProvider(AIProvider):
         )
 
 
+
         payload = {
 
-            "model": kwargs.get(
-                "model",
-                self.default_model
-            ),
+            "model":
+                kwargs.get(
+                    "model",
+                    self.default_model
+                ),
 
-            "messages": messages,
+            "messages":
+                messages,
 
-            "temperature": kwargs.get(
-                "temperature",
-                0.7
-            ),
+            "temperature":
+                kwargs.get(
+                    "temperature",
+                    0.7
+                ),
 
-            "stream": False
+            "stream":
+                False
 
         }
 
@@ -69,7 +79,7 @@ class LMStudioProvider(AIProvider):
 
 
             async with httpx.AsyncClient(
-                timeout=300
+                timeout=30
             ) as client:
 
 
@@ -82,11 +92,15 @@ class LMStudioProvider(AIProvider):
 
             if response.status_code != 200:
 
-                return (
-                    f"LM Studio error: "
-                    f"{response.status_code}\n"
-                    f"{response.text}"
+
+                print(
+                    "[LMSTUDIO ERROR]",
+                    response.status_code,
+                    response.text
                 )
+
+
+                return None
 
 
 
@@ -94,12 +108,31 @@ class LMStudioProvider(AIProvider):
 
 
 
-            return data["choices"][0]["message"]["content"]
+            return (
+                data["choices"][0]["message"]["content"]
+            )
+
+
+
+        except httpx.TimeoutException:
+
+
+            print(
+                "[LMSTUDIO TIMEOUT]"
+            )
+
+
+            return None
 
 
 
         except Exception as e:
 
-            return (
-                f"LM Studio connection error: {e}"
+
+            print(
+                "[LMSTUDIO CONNECTION ERROR]",
+                e
             )
+
+
+            return None

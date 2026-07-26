@@ -1,65 +1,118 @@
+from app.ai.provider import ai
+
+
+
 class Planner:
 
 
+    def __init__(self):
 
-    def create_plan(
+        pass
+
+
+
+    async def create_plan(
             self,
-            analysis,
-            architecture=None
+            task: str
     ):
 
 
-        if analysis["intent"]=="file_task":
+        try:
 
 
-            return {
+            prompt = f"""
+Ты Planner Agent.
+
+Проанализируй задачу.
+
+Задача:
+{task}
 
 
-                "action":
-                    "execute_tool",
+Создай подробный план выполнения:
+
+1.
+2.
+3.
+4.
+5.
+
+Не пиши код.
+Только план.
+"""
 
 
-                "tool":
-                    "file"
-
-            }
-
+            result = await ai.generate(
+                prompt
+            )
 
 
-        if architecture:
-
-
-            return {
-
-
-                "action":
-                    "execute_tool",
-
-
-                "tool":
-                    "project",
-
-
-                "params":{
-
-
-                    "path":
-                        "generated_project",
-
-
-                    "architecture":
-                        architecture["architecture"]
-
-                }
-
-            }
+            return result
 
 
 
-        return {
+        except Exception as e:
 
 
-            "action":
-                "generate_response"
+            print(
+                "[PLANNER] LOCAL MODE"
+            )
 
-        }
+
+            return self.local_plan(
+                task
+            )
+
+
+
+
+    def local_plan(
+            self,
+            task
+    ):
+
+
+        return f"""
+
+LOCAL PLANNER MODE
+
+
+Задача:
+
+{task}
+
+
+
+План выполнения:
+
+
+1. Анализ требований задачи.
+
+
+2. Определение компонентов системы.
+
+
+3. Разделение задачи на модули.
+
+
+4. Создание структуры проекта.
+
+
+5. Реализация основной логики.
+
+
+6. Проверка работоспособности.
+
+
+7. Исправление ошибок.
+
+
+8. Сохранение результата в память агента.
+
+
+
+Статус:
+
+План создан без AI модели.
+
+"""

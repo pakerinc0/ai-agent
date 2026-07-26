@@ -1,9 +1,12 @@
 from app.core.agent_manager import AgentManager
 from app.core.action_parser import ActionParser
 from app.core.executor import AgentExecutor
+from app.memory.memory_manager import MemoryManager
+
 
 
 class Orchestrator:
+
 
     def __init__(self):
 
@@ -13,25 +16,65 @@ class Orchestrator:
 
         self.executor = AgentExecutor()
 
+        self.memory = MemoryManager()
+
         self.max_retries = 3
 
 
 
     async def execute(self, task: str):
 
+
         print("[ORCHESTRATOR] Task started")
 
 
         result = {
+
             "task": task,
+
             "steps": []
+
         }
 
 
 
-        # =====================
+        # =========================
+        # MEMORY SEARCH
+        # =========================
+
+
+        print("[MEMORY] searching")
+
+
+        old_memory = self.memory.search(
+            task
+        )
+
+
+        result["memory"] = old_memory
+
+
+
+        if old_memory:
+
+            print(
+                "[MEMORY] found:",
+                len(old_memory)
+            )
+
+        else:
+
+            print(
+                "[MEMORY] empty"
+            )
+
+
+
+
+        # =========================
         # PLANNER
-        # =====================
+        # =========================
+
 
         planner = self.manager.get_agent(
             "planner"
@@ -43,7 +86,9 @@ class Orchestrator:
         )
 
 
-        print("[PLANNER] completed")
+        print(
+            "[PLANNER] completed"
+        )
 
 
         result["plan"] = plan
@@ -51,9 +96,11 @@ class Orchestrator:
 
 
 
-        # =====================
+
+        # =========================
         # CODER
-        # =====================
+        # =========================
+
 
         coder = self.manager.get_agent(
             "coder"
@@ -65,27 +112,25 @@ class Orchestrator:
         )
 
 
-        print("[CODER] generated")
+        print(
+            "[CODER] generated"
+        )
 
 
-        print("===== CODER RAW =====")
-        print(coder_output)
-        print("=====================")
+        print(
+            "===== CODER RAW ====="
+        )
 
 
-
-        if not coder_output:
-
-            return {
-                "error": "Coder returned empty response"
-            }
+        print(
+            coder_output
+        )
 
 
+        print(
+            "====================="
+        )
 
-
-        # =====================
-        # PARSE ACTIONS
-        # =====================
 
 
         actions = self.parser.parse_all(
@@ -93,61 +138,57 @@ class Orchestrator:
         )
 
 
-
         if not actions:
+
 
             return {
 
                 "error":
-                    "Coder did not return valid actions",
+                "Coder returned invalid actions",
 
                 "raw":
-                    coder_output
+                coder_output
 
             }
 
 
 
-        print("[ACTIONS PARSED]")
-        print(actions)
+        print(
+            "[ACTIONS PARSED]"
+        )
+
+
+        print(
+            actions
+        )
 
 
 
 
-        # =====================
+        # =========================
         # EXECUTION
-        # =====================
+        # =========================
 
 
-        execution_results = []
+        execution = await self.executor.execute(
+            actions
+        )
 
 
-        for action in actions:
+        print(
+            "[EXECUTOR] finished"
+        )
 
 
-            execution = await self.executor.execute(
-                action
-            )
-
-
-            execution_results.append(
-                execution
-            )
-
-
-
-        print("[EXECUTOR] finished")
-
-
-        result["execution"] = execution_results
+        result["execution"] = execution
 
 
 
 
 
-        # =====================
-        # REVIEWER
-        # =====================
+        # =========================
+        # REVIEW
+        # =========================
 
 
         reviewer = self.manager.get_agent(
@@ -156,11 +197,13 @@ class Orchestrator:
 
 
         review = await reviewer.run(
-            str(execution_results)
+            str(execution)
         )
 
 
-        print("[REVIEWER] completed")
+        print(
+            "[REVIEWER] completed"
+        )
 
 
         result["review"] = review
@@ -168,150 +211,35 @@ class Orchestrator:
 
 
 
+        # =========================
+        # SAVE MEMORY
+        # =========================
 
-        # =====================
-        # FIX LOOP
-        # =====================
 
+        self.memory.add(
 
-        attempt = 0
+            task,
 
+            {
 
+                "execution": execution,
 
-        while (
+                "review": review
 
-            "NEEDS_FIX" in review
+            }
 
-            and
+        )
 
-            attempt < self.max_retries
 
-        ):
+        print(
+            "[MEMORY] saved"
+        )
 
 
-            attempt += 1
 
 
-            print(
-                f"[FIX] attempt {attempt}"
-            )
+        result["final"] = execution
 
-
-
-            fix_prompt = f"""
-
-Исправь результат.
-
-
-Ошибка выполнения:
-
-{execution_results}
-
-
-Проблемы проверки:
-
-{review}
-
-
-Верни только JSON actions.
-
-
-Разрешенные форматы:
-
-
-Создать файл:
-
-{{
-"tool":"file",
-"method":"write_file",
-"params":{{
-"path":"file.py",
-"content":"код"
-}}
-}}
-
-
-Запустить:
-
-{{
-"tool":"terminal",
-"method":"run",
-"params":{{
-"command":"python file.py"
-}}
-}}
-
-
-"""
-
-
-
-            coder_output = await coder.run(
-                fix_prompt
-            )
-
-
-
-            print(
-                "===== FIX CODER RAW ====="
-            )
-
-            print(
-                coder_output
-            )
-
-            print(
-                "========================="
-            )
-
-
-
-            actions = self.parser.parse_all(
-                coder_output
-            )
-
-
-
-            if not actions:
-
-                print(
-                    "[FIX] invalid actions"
-                )
-
-                break
-
-
-
-            execution_results = []
-
-
-
-            for action in actions:
-
-
-                execution = await self.executor.execute(
-                    action
-                )
-
-
-                execution_results.append(
-                    execution
-                )
-
-
-
-            review = await reviewer.run(
-                str(execution_results)
-            )
-
-
-
-        # =====================
-        # FINAL
-        # =====================
-
-
-        result["final"] = execution_results
 
         result["final_review"] = review
 
@@ -320,7 +248,6 @@ class Orchestrator:
         print(
             "[ORCHESTRATOR] finished"
         )
-
 
 
         return result
